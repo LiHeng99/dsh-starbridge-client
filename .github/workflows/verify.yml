@@ -1,0 +1,38 @@
+name: verify
+
+# The offline suite in `scripts/verify.mjs` is this repo's whole quality signal:
+# build both halves, then check the composed patch, the config schema, the
+# gateway protocol, every HTTP route, and the client bundle envelope — with no
+# network, no credentials, and no DSH process.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # `engines` requires ^22.19.0 || >=24.0.0; '22' resolves to the latest
+          # 22.x, which satisfies it.
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Both builds must run before verify: it imports lib/index.js and
+      # lib/client.js, so a type error has to fail here rather than turn into a
+      # confusing "file missing" further down.
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Verify
+        run: npm run verify
