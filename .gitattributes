@@ -1,0 +1,14 @@
+# 仓库里一律存 LF；Windows 检出时按本地习惯转换。
+* text=auto
+
+# 二进制资源，别再让 git 猜。
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.tgz binary
+
+# 锁文件在 PR 里默认折叠，评审时不必翻 3000 行。
+package-lock.json linguist-generated
