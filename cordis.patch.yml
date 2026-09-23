@@ -105,6 +105,15 @@
 # 这是 DSH 官方支持的扩展点（providers 字典）。自写适配器要长期跟进流式协议、
 # 重试策略、模型发现与设置界面的演进，而中台侧真正需要的只是「会说 OpenAI 协议」。
 #
+# ⚠️ 补丁语义：`- id: X` + `config:` 是**整块替换**该行的 config，不是深合并
+# （见 dsh-base 自己的 cordis.patch.yml 顶部说明）。shipped 的 dsh-base 里
+# `llm-pi-ai` 行本来没有 config——pi-ai 的路由按设计就住在用户的
+# `llm-pi-ai:` 设置分区里，由 Models 页面写——所以这里不会覆盖任何人的现有路由；
+# 而设置页接通星桥时用的是 `settings.update()`（**合并**语义），也不会动别的 provider。
+# 唯一会撞上的是：某个部署自己在某个补丁层里声明了 pi-ai 的 providers。
+# 那种情况下，按 DSH「同一行后者覆盖前者」的规则，你自己的补丁层要放在本包**之后**
+# （profile 自己的 cordis.patch.yml 永远在 bundle 层之后），并把 starbridge 一并写全。
+#
 # 身份：baseURL 只能声明地址；x-user-id 逐人不同，无法写死在一个要分发的组合包里。
 # 用平台账号登录时身份来自令牌；用访问密钥时可在设置页填身份标识，或在该 profile
 # 自己的 cordis.patch.yml（在 bundle 层之后应用）里加：
