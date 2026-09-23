@@ -1,0 +1,68 @@
+name: Bug 报告
+description: 插件的行为和文档写的不一样，或者直接坏了
+title: '[bug] '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先跑一次 `npm run verify` —— 它离线复现大部分问题，比任何描述都快。
+
+        **不要贴真实凭据**（访问密钥、平台令牌、密码），用占位值。
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本
+      description: package.json 里的 version，或 `dsh plugin list` 里的版本
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本与运行方式
+      description: '`dsh --version` 的输出；以及是桌面客户端还是 `dsh web`'
+      placeholder: 0.1.0-rc.7 / dsh web
+    validations:
+      required: true
+  - type: input
+    id: surface
+    attributes:
+      label: 出问题的面
+      description: host（工具 / HTTP 路由）、client（对话面板 / 设置页 / 反馈条），还是模型路由
+      placeholder: 设置页的连接步骤
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你期望什么，实际发生了什么
+      description: 如果 UI 上有报错，把错误信封里的 code / message / hint 原样贴上来
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 设置 → 星桥 StarBridge
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 插件日志
+      description: |
+        DSH 启动日志里 `starbridge:` 开头的那些行。日志已经过脱敏 sink，但贴之前还是自己扫一眼。
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: verify
+    attributes:
+      label: verify 输出
+      description: '`npm run verify` 的结尾（checks 计数与失败项）'
+      render: text
+    validations:
+      required: false
