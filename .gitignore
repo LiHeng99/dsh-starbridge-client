@@ -1,0 +1,19 @@
+# 依赖
+node_modules/
+
+# 构建产物：由 npm run build 生成（tsc → lib/，tsdown → lib/client.js）
+# 不入库，避免源码与产物不一致；发布走 npm pack 的 files 白名单。
+lib/
+dist/
+
+# 日志与编辑器
+*.log
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo
+
+# 本地环境文件（可能含网关地址与凭据）
+.env
+.env.local

@@ -1,0 +1,142 @@
+# StarBridge (星桥) bundle layer for a DSH profile.
+#
+# Composition facts this file depends on:
+#
+# - A bundle patch list is applied over the entry list built by the layers before
+#   it, in `dsh.profile.bundles` order. `dsh-base` contributes the `tools` row,
+#   so this plugin is mounted after the tool registry it requires.
+# - An `insert` WITHOUT `id` appends to the profile ROOT, which is what a
+#   self-contained application plugin wants: it owns its row, not a seat inside
+#   someone else's group. (`insert` WITH `id` would push into a group's `config`
+#   list.)
+# - `inject` on the row is the plugin's own dependency gate. `tools` is required
+#   (registering StarBridge tools is the point of the plugin); the web server is
+#   NOT listed, because the plugin resolves it optionally at runtime so the same
+#   row works in a headless profile with no browser surface at all.
+# - This one row is also the browser roster entry: `dsh-client-modules` scans
+#   every loader row for a package that declares `dsh.client`, so the Web profile
+#   picks up the client half from the same name with no second row.
+#
+# Values below are deployment defaults. Nothing secret belongs in this file:
+# inject credentials through the environment instead
+# (`STARBRIDGE_GATEWAY_API_KEY`, `STARBRIDGE_OIDC_CLIENT_ID`,
+# `STARBRIDGE_OIDC_CLIENT_SECRET`, `STARBRIDGE_GATEWAY_URL`), or override any row
+# field from the profile's own `cordis.patch.yml`, which is applied after every
+# bundle layer.
+
+- insert:
+    - id: starbridge
+      name: '@company/dsh-starbridge-client'
+      config:
+        gateway:
+          # Company AI gateway root, WITHOUT the machine-face path: this plugin
+          # derives <root>/gw (tools, feedback, KB) and <root>/gw/v1 (the model
+          # route) from it. A user overrides it from DSH Settings → 星桥 StarBridge.
+          gatewayUrl: https://starbridge-gateway.company.com/v1
+          # Prefer STARBRIDGE_GATEWAY_API_KEY over writing a key here. This is
+          # also the reference the model route resolves through `apiKeyEnv`
+          # below: the settings page writes the user's access key or platform
+          # token under this exact name, so do not rename it in only one place.
+          apiKey: ''
+          timeoutMs: 30000
+          maxRetries: 2
+          retryBackoffMs: 500
+          # Provider route this plugin manages when the user turns model routing
+          # on. It must match the `starbridge` route declared for llm-pi-ai below.
+          modelProvider: starbridge
+
+        oidc:
+          # Empty issuer + client id runs the plugin without employee sign-in
+          # (a machine credential from gateway.apiKey is then required).
+          issuerUrl: ''
+          clientId: ''
+          clientSecret: ''
+          scopes: [openid, profile, email]
+          prompt: ''
+          refreshSkewMs: 60000
+
+        identity:
+          # Empty values fall back to STARBRIDGE_USER_ID / STARBRIDGE_DEPARTMENT,
+          # and then to the signed-in subject.
+          userId: ''
+          department: ''
+          scenario: chat
+
+        behavior:
+          useKnowledgeBase: false
+          knowledgeBaseScenario: kb
+          knowledgeBaseTopK: 5
+          # false keeps every like/dislike/correction on this machine only.
+          forwardFeedback: true
+
+        storage:
+          feedbackEventName: starbridge/feedback
+          feedbackMemoryLimit: 200
+          # Empty resolves to the DSH home; the refresh token is sealed there
+          # with AES-256-GCM under a 0600 key file.
+          directory: ''
+
+# ── 模型面（provider: starbridge）：让每一次模型调用都经过星桥中台 ──────────
+#
+# 上面那一行是「工具面」：只有模型主动调用 starbridge_* 工具时才经过中台。
+# 下面两行是「模型面」：把 DSH 的模型调用本身接到中台的 OpenAI 兼容面
+# （/starbridge/gw/v1/*）。于是对话、子代理、摘要、标题生成——每一次模型调用
+# 都必须先通过中台的认证、路由、配额与审计，不再存在绕过工具面的通道。
+#
+# 谁在运行时接管它：星桥插件本身。用户在「设置 → 星桥 StarBridge」里填地址、
+# 填访问密钥或用平台账号登录之后，插件会
+#   1. 把本路由的 baseURL 写进 `llm-pi-ai` 设置分节（按请求生效，无需重启）；
+#   2. 把凭据写进下面 apiKeyEnv 指名的那个引用；
+#   3. 把新会话的默认模型切到 starbridge / general。
+# 因此下面这些值只是**出厂默认**：地址与凭据都可以在界面上改。
+#
+# 为什么用 llm-pi-ai 的「手工声明网关路由」而不是自写一个 provider 适配器：
+# 这是 DSH 官方支持的扩展点（providers 字典）。自写适配器要长期跟进流式协议、
+# 重试策略、模型发现与设置界面的演进，而中台侧真正需要的只是「会说 OpenAI 协议」。
+#
+# 身份：baseURL 只能声明地址；x-user-id 逐人不同，无法写死在一个要分发的组合包里。
+# 用平台账号登录时身份来自令牌；用访问密钥时可在设置页填身份标识，或在该 profile
+# 自己的 cordis.patch.yml（在 bundle 层之后应用）里加：
+#
+#     - id: llm-pi-ai
+#       config:
+#         providers:
+#           starbridge:
+#             headers: { x-user-id: your.login }
+#
+# 或者由服务端配置默认服务身份（环境变量 STARBRIDGE_GATEWAY_DEFAULT_USER）。
+- id: llm-pi-ai
+  config:
+    providers:
+      starbridge:
+        displayName: 星桥中台
+        api: openai-completions
+        baseURL: https://starbridge-gateway.company.com/starbridge/gw/v1
+        # 与 gateway.apiKey 同源：优先用环境变量，不要把密钥写进配置文件；
+        # 用户在设置页填写的密钥或平台令牌也写在这个引用下。
+        apiKeyEnv: STARBRIDGE_GATEWAY_API_KEY
+        # model 字段承载的是「场景」，不是上游模型名。上游由中台按场景 + 部门决定，
+        # 调用方无权指定，因此也就无法绕过路由规则与配额。
+        models:
+          - id: general
+            name: 通用对话
+            contextWindow: 262144
+          - id: code_review
+            name: 代码评审
+            contextWindow: 262144
+          - id: doc_qa
+            name: 文档问答
+            contextWindow: 262144
+          - id: summarize
+            name: 摘要总结
+            contextWindow: 262144
+        retryPolicy:
+          mode: normal
+          maxRetries: 2
+
+# 出厂默认模型：只有在 settings.yaml 没有 agent-default-model 分节时才生效。
+# 用户不需要改这里——设置页的「模型路由」开关会在运行时改默认模型选择。
+- id: agent-default-model
+  config:
+    provider: starbridge
+    model: general
