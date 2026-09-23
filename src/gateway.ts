@@ -16,7 +16,7 @@
  *   shape or in its own `{delta}` / `{text}` shape; both are folded into
  *   {@link StarBridgeChatDelta} so no caller branches on the provider.
  *
- * @module @company/dsh-starbridge-client/gateway
+ * @module dsh-starbridge-client/gateway
  */
 
 import { StarBridgeError, redactUrl } from './errors.ts'
@@ -167,6 +167,21 @@ export class StarBridgeGateway {
   async request(options: GatewayRequestOptions): Promise<GatewayResponse> {
     const traceId = options.traceId ?? newTraceId(options.stream === true ? 'stream' : 'req')
     const identity = this.identity(traceId, options.scenario)
+
+    // A fresh install has no address yet. Fail as a typed, actionable error
+    // rather than letting `${''}/chat` become a relative URL that surfaces as a
+    // fetch-level TypeError.
+    if (this.baseUrl.length === 0) {
+      throw new StarBridgeError(
+        'GATEWAY_NOT_CONFIGURED',
+        'No StarBridge gateway address is configured yet.',
+        {
+          hint: 'Open DSH Settings → StarBridge, paste the gateway address (for example '
+            + '"https://starbridge.example.com/starbridge") and connect; or set STARBRIDGE_GATEWAY_URL.',
+        },
+      )
+    }
+
     const url = `${this.baseUrl}${options.path}`
     const retryable = options.retryable ?? true
     const attempts = retryable ? this.config.gateway.maxRetries + 1 : 1

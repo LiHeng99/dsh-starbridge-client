@@ -1,5 +1,5 @@
 /**
- * Offline smoke verification for @company/dsh-starbridge-client.
+ * Offline smoke verification for dsh-starbridge-client.
  *
  * Runs against the BUILT artifacts (`lib/index.js`, `lib/client.js`) with no
  * network, no DSH host, and no credentials, so it can gate a commit or a release
@@ -359,7 +359,7 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 // 1. Package and bundle structure
 // ---------------------------------------------------------------------------
 
-check('package name is the plugin id', pkg.name === '@company/dsh-starbridge-client')
+check('package name is the plugin id', pkg.name === 'dsh-starbridge-client')
 check('package is ESM', pkg.type === 'module')
 check('package declares dsh.bundle.patch', pkg.dsh?.bundle?.patch === './cordis.patch.yml')
 check('package declares dsh.client for the web platform', pkg.dsh?.client?.platform === 'web')
@@ -373,7 +373,7 @@ check('host build emitted lib/index.js', hostSource.length > 0)
 check('client build emitted lib/client.js', clientSource.length > 0)
 
 const patch = readFileSync(join(root, pkg.dsh.bundle.patch), 'utf8')
-check('cordis.patch.yml inserts the plugin row', /-\s*insert:/.test(patch) && patch.includes("name: '@company/dsh-starbridge-client'"))
+check('cordis.patch.yml inserts the plugin row', /-\s*insert:/.test(patch) && patch.includes("name: 'dsh-starbridge-client'"))
 check('cordis.patch.yml gives the row an id', /^\s*- id: starbridge$/m.test(patch))
 check('cordis.patch.yml inserts at the profile root (no target id)', !/^\s*- id: [^\n]*\n\s*insert:/m.test(patch))
 
@@ -400,13 +400,25 @@ function defaultConfig() {
   return host.Config(raw)
 }
 
-const config = defaultConfig()
-checkEqual('gateway defaults to the company host', config.gateway.gatewayUrl, 'https://starbridge-gateway.company.com/v1')
-checkEqual('timeout default is 30s', config.gateway.timeoutMs, 30000)
-checkEqual('retry default is 2', config.gateway.maxRetries, 2)
-checkEqual('identity scenario defaults to chat', config.identity.scenario, 'chat')
-checkEqual('feedback forwarding defaults on', config.behavior.forwardFeedback, true)
-check('schema tolerates a bare row (sections synthesised from leaves)', typeof config.oidc.scopes.length === 'number')
+const bareDefaults = defaultConfig()
+checkEqual('an unconfigured install defaults to no gateway address', bareDefaults.gateway.gatewayUrl, '')
+checkEqual('timeout default is 30s', bareDefaults.gateway.timeoutMs, 30000)
+checkEqual('retry default is 2', bareDefaults.gateway.maxRetries, 2)
+checkEqual('identity scenario defaults to chat', bareDefaults.identity.scenario, 'chat')
+checkEqual('feedback forwarding defaults on', bareDefaults.behavior.forwardFeedback, true)
+check('schema tolerates a bare row (sections synthesised from leaves)', typeof bareDefaults.oidc.scopes.length === 'number')
+
+// From here on the suite needs a CONFIGURED deployment, so the address is
+// stated explicitly instead of inherited from a shipped default: the plugin
+// ships none.
+const config = host.Config({
+  gateway: { gatewayUrl: 'https://starbridge-gateway.example.com/v1' },
+  oidc: {},
+  identity: {},
+  behavior: {},
+  storage: {},
+})
+checkEqual('an explicit address survives the schema', config.gateway.gatewayUrl, 'https://starbridge-gateway.example.com/v1')
 
 const { validateConfig } = await import(new URL('../lib/config.js', import.meta.url).href)
 let invalidRejected = false
@@ -416,6 +428,48 @@ try {
   invalidRejected = error.message.includes('not an absolute URL')
 }
 check('a malformed gatewayUrl is rejected loudly with the fix', invalidRejected)
+
+// An install with no address must still LOAD. The settings page that fixes it
+// is served by this same plugin, so throwing during load would be a one-click
+// install nobody could repair from inside DSH.
+checkEqual(
+  'an unconfigured install resolves to an empty address instead of throwing',
+  validateConfig(bareDefaults).gateway.gatewayUrl,
+  '',
+)
+
+const unconfigured = makeContext()
+let unconfiguredError = null
+try {
+  host.apply(unconfigured.ctx, bareDefaults)
+} catch (error) {
+  unconfiguredError = error
+}
+check('an unconfigured install loads', unconfiguredError === null, String(unconfiguredError))
+checkEqual('an unconfigured install still registers every tool', unconfigured.tools.length, 4)
+checkEqual(
+  'an unconfigured install reports no address to the settings page',
+  unconfigured.services.get('starBridge').status().gatewayUrl,
+  '',
+)
+
+// A call made before the address is filled in must fail as a typed, actionable
+// error rather than a fetch-level TypeError on a relative URL.
+const addressless = makeContext()
+host.apply(addressless.ctx, { ...bareDefaults, gateway: { ...bareDefaults.gateway, apiKey: 'machine-key' } })
+const addresslessChat = addressless.tools.find((tool) => tool.name === 'starbridge_chat')
+let addresslessOutcome
+try {
+  const value = await addresslessChat.execute({ messages: [{ role: 'user', content: 'hi' }] }, execContext())
+  addresslessOutcome = typeof value?.error === 'string' ? value.error : JSON.stringify(value)
+} catch (error) {
+  addresslessOutcome = `${String(error?.code ?? '')} ${String(error?.message ?? error)}`
+}
+check(
+  'an address-less call reports GATEWAY_NOT_CONFIGURED',
+  addresslessOutcome.includes('GATEWAY_NOT_CONFIGURED'),
+  addresslessOutcome,
+)
 
 let halfOidcRejected = false
 try {
@@ -466,7 +520,7 @@ checkEqual('smoke A: gateway conversation id is preserved', chatValue.conversati
 checkMatch('smoke A: a trace id is returned', chatValue.traceId, /^sb-chat-/)
 
 const chatCall = fetchCalls.find((call) => call.url.endsWith('/chat/completions'))
-checkEqual('smoke A: gateway URL is the configured base plus the route', chatCall.url, 'https://starbridge-gateway.company.com/v1/chat/completions')
+checkEqual('smoke A: gateway URL is the configured base plus the route', chatCall.url, 'https://starbridge-gateway.example.com/v1/chat/completions')
 checkEqual('smoke A: user identity header is sent', chatCall.headers['x-user-id'], 'anonymous')
 checkEqual('smoke A: department header is sent', chatCall.headers['x-department'], '')
 checkEqual('smoke A: scenario header is sent', chatCall.headers['x-scenario'], 'chat')
@@ -493,7 +547,7 @@ const oidcConfig = {
   gateway: { ...config.gateway, apiKey: '' },
   oidc: {
     ...config.oidc,
-    issuerUrl: 'https://sso.company.com/realms/staff',
+    issuerUrl: 'https://sso.example.com/realms/staff',
     clientId: 'dsh-starbridge',
     clientSecret: 'super-secret-value',
   },
@@ -502,9 +556,9 @@ const oidcConfig = {
 stubFetch((call) => {
   if (call.url.endsWith('/.well-known/openid-configuration')) {
     return jsonResponse({
-      issuer: 'https://sso.company.com/realms/staff',
-      authorization_endpoint: 'https://sso.company.com/realms/staff/auth',
-      token_endpoint: 'https://sso.company.com/realms/staff/token',
+      issuer: 'https://sso.example.com/realms/staff',
+      authorization_endpoint: 'https://sso.example.com/realms/staff/auth',
+      token_endpoint: 'https://sso.example.com/realms/staff/token',
     })
   }
   return jsonResponse({ ok: true })
@@ -648,7 +702,7 @@ checkEqual('a conversation marker frame is captured', flat.conversationId, 'conv
 // 6d. A knowledge-base reply is normalized.
 stubFetch(() => jsonResponse({
   results: [
-    { title: '差旅制度', url: 'https://kb.company.com/1', content: '国内差旅标准…', score: 0.91 },
+    { title: '差旅制度', url: 'https://kb.example.com/1', content: '国内差旅标准…', score: 0.91 },
     { name: '报销制度', id: 'kb-2', text: '发票要求…' },
   ],
 }))
@@ -766,14 +820,14 @@ const routeG = (path) => {
 const { normalizeGatewayBaseUrl } = await import(new URL('../lib/gateway-config.js', import.meta.url).href)
 
 const pasteCases = [
-  { pasted: 'https://sb.company.com', root: 'https://sb.company.com' },
-  { pasted: 'https://sb.company.com/', root: 'https://sb.company.com' },
-  { pasted: 'https://sb.company.com/starbridge', root: 'https://sb.company.com/starbridge' },
-  { pasted: 'https://sb.company.com/starbridge/', root: 'https://sb.company.com/starbridge' },
-  { pasted: 'https://sb.company.com/starbridge/gw', root: 'https://sb.company.com/starbridge' },
-  { pasted: 'https://sb.company.com/starbridge/gw/', root: 'https://sb.company.com/starbridge' },
-  { pasted: 'https://sb.company.com/starbridge/gw/v1', root: 'https://sb.company.com/starbridge' },
-  { pasted: 'https://sb.company.com/starbridge/gw/v1/chat/completions', root: 'https://sb.company.com/starbridge' },
+  { pasted: 'https://sb.example.com', root: 'https://sb.example.com' },
+  { pasted: 'https://sb.example.com/', root: 'https://sb.example.com' },
+  { pasted: 'https://sb.example.com/starbridge', root: 'https://sb.example.com/starbridge' },
+  { pasted: 'https://sb.example.com/starbridge/', root: 'https://sb.example.com/starbridge' },
+  { pasted: 'https://sb.example.com/starbridge/gw', root: 'https://sb.example.com/starbridge' },
+  { pasted: 'https://sb.example.com/starbridge/gw/', root: 'https://sb.example.com/starbridge' },
+  { pasted: 'https://sb.example.com/starbridge/gw/v1', root: 'https://sb.example.com/starbridge' },
+  { pasted: 'https://sb.example.com/starbridge/gw/v1/chat/completions', root: 'https://sb.example.com/starbridge' },
   { pasted: 'http://10.0.0.5:8888/starbridge/gw', root: 'http://10.0.0.5:8888/starbridge' },
 ]
 for (const { pasted, root } of pasteCases) {
@@ -784,21 +838,21 @@ for (const { pasted, root } of pasteCases) {
 }
 // A server root does not get a router prefix invented for it, and a relative or
 // non-http value is refused rather than half-accepted.
-checkEqual('normalizeGatewayBaseUrl keeps a bare server root', normalizeGatewayBaseUrl('https://sb.company.com').faceUrl, 'https://sb.company.com/gw')
+checkEqual('normalizeGatewayBaseUrl keeps a bare server root', normalizeGatewayBaseUrl('https://sb.example.com').faceUrl, 'https://sb.example.com/gw')
 checkEqual('normalizeGatewayBaseUrl refuses a relative path', normalizeGatewayBaseUrl('/starbridge/gw').baseUrl, '')
-checkEqual('normalizeGatewayBaseUrl refuses a non-http scheme', normalizeGatewayBaseUrl('ftp://sb.company.com').baseUrl, '')
+checkEqual('normalizeGatewayBaseUrl refuses a non-http scheme', normalizeGatewayBaseUrl('ftp://sb.example.com').baseUrl, '')
 
 const shapeRes = fakeResponse()
 await routeG('/starbridge/api/gateway/settings').handler(
-  fakeRequest({ method: 'POST', body: JSON.stringify({ baseUrl: 'https://sb.company.com/starbridge/gw/v1', userId: 'liheng', department: 'eng' }) }),
+  fakeRequest({ method: 'POST', body: JSON.stringify({ baseUrl: 'https://sb.example.com/starbridge/gw/v1', userId: 'liheng', department: 'eng' }) }),
   shapeRes,
 )
 const shapeBody = shapeRes.json()
 checkEqual('POST /gateway/settings answers 200', shapeRes.state.status, 200)
-checkEqual('  → a pasted model-face address collapses to the server prefix', shapeBody.settings.baseUrl, 'https://sb.company.com/starbridge')
+checkEqual('  → a pasted model-face address collapses to the server prefix', shapeBody.settings.baseUrl, 'https://sb.example.com/starbridge')
 checkEqual('  → and the identity is stored with it', shapeBody.settings.userId, 'liheng')
-checkEqual('  → /status reports the machine face', shapeBody.status.faceUrl, 'https://sb.company.com/starbridge/gw')
-checkEqual('  → /status reports the model face', shapeBody.status.modelUrl, 'https://sb.company.com/starbridge/gw/v1')
+checkEqual('  → /status reports the machine face', shapeBody.status.faceUrl, 'https://sb.example.com/starbridge/gw')
+checkEqual('  → /status reports the model face', shapeBody.status.modelUrl, 'https://sb.example.com/starbridge/gw/v1')
 
 const badUrlRes = fakeResponse()
 await routeG('/starbridge/api/gateway/settings').handler(
@@ -813,7 +867,7 @@ checkEqual('  → and names the code', badUrlRes.json().code, 'INVALID_ARGUMENT'
 // "configured" while failing every request with MISSING_CREDENTIAL.
 const keyRes = fakeResponse()
 await routeG('/starbridge/api/gateway/access-key').handler(
-  fakeRequest({ method: 'POST', body: JSON.stringify({ baseUrl: 'https://sb.company.com/starbridge/gw', accessKey: 'sk-live-123', userId: 'liheng' }) }),
+  fakeRequest({ method: 'POST', body: JSON.stringify({ baseUrl: 'https://sb.example.com/starbridge/gw', accessKey: 'sk-live-123', userId: 'liheng' }) }),
   keyRes,
 )
 const keyBody = keyRes.json()
@@ -828,7 +882,7 @@ checkEqual(
 checkEqual(
   '  → the provider route is pointed at the model face',
   contextG.settingsWrites[0],
-  { ns: 'llm-pi-ai', patch: { providers: { starbridge: { baseURL: 'https://sb.company.com/starbridge/gw/v1' } } } },
+  { ns: 'llm-pi-ai', patch: { providers: { starbridge: { baseURL: 'https://sb.example.com/starbridge/gw/v1' } } } },
 )
 checkEqual(
   '  → the default model switches to the StarBridge route',
@@ -868,7 +922,7 @@ const signInRes = fakeResponse()
 await routeH('/starbridge/api/gateway/login').handler(
   fakeRequest({
     method: 'POST',
-    body: JSON.stringify({ baseUrl: 'https://sb.company.com/starbridge', username: 'liheng', password: 'hunter2', remember: true }),
+    body: JSON.stringify({ baseUrl: 'https://sb.example.com/starbridge', username: 'liheng', password: 'hunter2', remember: true }),
   }),
   signInRes,
 )
@@ -946,7 +1000,7 @@ try {
   await beforeRoute('/starbridge/api/gateway/access-key').handler(
     fakeRequest({
       method: 'POST',
-      body: JSON.stringify({ baseUrl: 'https://sb.company.com/starbridge/gw', accessKey: 'sk-restart-me', userId: 'liheng' }),
+      body: JSON.stringify({ baseUrl: 'https://sb.example.com/starbridge/gw', accessKey: 'sk-restart-me', userId: 'liheng' }),
     }),
     connectRes,
   )
@@ -982,7 +1036,7 @@ try {
   const statusRes2 = fakeResponse()
   await afterRoute('/starbridge/api/status').handler(fakeRequest(), statusRes2)
   const restarted = statusRes2.json()
-  checkEqual('after the restart the address is still the one that was saved', restarted.gatewaySettings.baseUrl, 'https://sb.company.com/starbridge')
+  checkEqual('after the restart the address is still the one that was saved', restarted.gatewaySettings.baseUrl, 'https://sb.example.com/starbridge')
   checkEqual('  → and the auth mode is still access-key', restarted.access.authMode, 'access-key')
   checkEqual('  → and the identity is still reported', restarted.access.userId, 'liheng')
   checkEqual('  → and model routing is still on', restarted.modelRoute.routedThroughGateway, true)
@@ -1078,7 +1132,7 @@ const { parseMarkdown, parseInline } = await import(new URL('../lib/shared/markd
 const md = parseMarkdown([
   '# 标题',
   '',
-  '**粗体** 与 `行内代码` 与 [链接](https://intranet.company.com)。',
+  '**粗体** 与 `行内代码` 与 [链接](https://intranet.example.com)。',
   '',
   '```ts',
   'const answer: number = 42',
@@ -1097,7 +1151,7 @@ const md = parseMarkdown([
 checkEqual('markdown: heading level is parsed', md[0].kind === 'heading' && md[0].level === 1, true)
 check('markdown: strong/emphasis survives inline parsing', md[1].children.some((node) => node.kind === 'strong'))
 check('markdown: an inline code span is parsed', md[1].children.some((node) => node.kind === 'code'))
-check('markdown: a link is parsed with its href', md[1].children.some((node) => node.kind === 'link' && node.href === 'https://intranet.company.com'))
+check('markdown: a link is parsed with its href', md[1].children.some((node) => node.kind === 'link' && node.href === 'https://intranet.example.com'))
 const codeBlock = md.find((node) => node.kind === 'code')
 checkEqual('markdown: fenced code keeps its language and body', [codeBlock.language, codeBlock.value], ['ts', 'const answer: number = 42'])
 check('markdown: a bullet list is parsed', md.some((node) => node.kind === 'list' && node.items.length === 2))
@@ -1184,9 +1238,9 @@ if (appBoot === null) {
   checkEqual('the row carries the documented id', ownRow[0].id, 'starbridge')
   check('the row carries a config block', typeof ownRow[0].config === 'object' && ownRow[0].config !== null)
   checkEqual(
-    'the row config states the gateway base URL',
+    'the row ships no gateway address (a per-deployment fact, not a plugin default)',
     ownRow[0].config.gateway.gatewayUrl,
-    'https://starbridge-gateway.company.com/v1',
+    '',
   )
   checkEqual('the row config states the retry budget', ownRow[0].config.gateway.maxRetries, 2)
   checkEqual('the row config declares the OIDC scope list', ownRow[0].config.oidc.scopes.join(' '), 'openid profile email')
@@ -1197,10 +1251,11 @@ if (appBoot === null) {
   checkEqual('the group row is left untouched', composed.find((entry) => entry.id === 'web-layer').config.length, 1)
 
   // The composed config must survive the plugin's OWN schema validation, which
-  // is the real end-to-end statement: a shipped patch plus a bare profile boots.
+  // is the real end-to-end statement: a shipped patch plus a bare profile boots
+  // — unconfigured, but booting, which is what makes the settings page reachable.
   const composedConfig = host.Config(ownRow[0].config)
   const resolvedComposed = validateConfig(composedConfig)
-  checkEqual('the shipped patch validates against the Config Schema', resolvedComposed.gateway.gatewayUrl, 'https://starbridge-gateway.company.com/v1')
+  checkEqual('the shipped patch validates against the Config Schema', resolvedComposed.gateway.gatewayUrl, '')
 }
 
 // ---------------------------------------------------------------------------
@@ -1209,7 +1264,7 @@ if (appBoot === null) {
 
 const failed = results.filter((result) => !result.ok)
 console.log('')
-console.log(`@company/dsh-starbridge-client — offline verification`)
+console.log(`dsh-starbridge-client — offline verification`)
 console.log(`  checks: ${results.length - failed.length}/${results.length} passed`)
 console.log('')
 console.log('  smoke cases:')

@@ -8,7 +8,7 @@
  * body the settings panel shows — so "errors are loud" is one mechanism, not
  * three copies of a message.
  *
- * @module @company/dsh-starbridge-client/errors
+ * @module dsh-starbridge-client/errors
  */
 
 /** Stable machine-readable failure codes. */
@@ -17,6 +17,7 @@ export type StarBridgeErrorCode =
   | 'AUTH_FAILED'
   | 'AUTH_NOT_CONFIGURED'
   | 'CONFIG_INVALID'
+  | 'GATEWAY_NOT_CONFIGURED'
   | 'GATEWAY_UNREACHABLE'
   | 'GATEWAY_TIMEOUT'
   | 'GATEWAY_REJECTED'

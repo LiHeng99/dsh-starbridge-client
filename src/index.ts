@@ -18,7 +18,7 @@
  *   the session listener, and the service teardown are all fiber-owned, so
  *   unloading the plugin releases every one of them.
  *
- * @module @company/dsh-starbridge-client
+ * @module dsh-starbridge-client
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -326,4 +326,13 @@ export function apply(ctx: Context, config: StarBridgeConfig): void {
     + `${resolved.identity.userId.length > 0 ? `user ${resolved.identity.userId}` : 'user identity from the signed-in session'}; `
     + `scenario ${resolved.identity.scenario})`,
   )
+
+  // An unconfigured plugin is a normal state for a fresh install, so it is
+  // announced rather than treated as a fault: the settings page is the way in.
+  if (resolved.gateway.gatewayUrl.length === 0) {
+    logger.info(
+      'starbridge: no gateway address configured yet — open DSH Settings → StarBridge to connect. '
+      + 'Until then every StarBridge tool reports [GATEWAY_NOT_CONFIGURED].',
+    )
+  }
 }

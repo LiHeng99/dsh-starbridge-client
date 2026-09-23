@@ -5,10 +5,11 @@
  *
  * Nothing in this plugin hardcodes an address, a credential, or an identity:
  * everything deployment-specific is a schema field below, and every field has a
- * default that is safe to ship (the gateway default points at the company host,
- * not at a developer machine).
+ * default that is safe to ship to anyone. The gateway address therefore starts
+ * EMPTY rather than pointing at one organisation's host — the plugin installs
+ * and loads unconfigured, and the settings page is what turns it on.
  *
- * @module @company/dsh-starbridge-client/config
+ * @module dsh-starbridge-client/config
  */
 
 import Schema from '@deepseek-ai/schemastery'
@@ -44,7 +45,7 @@ export interface StarBridgeGatewayConfig {
 
 /** OIDC Authorization Code + PKCE configuration. */
 export interface StarBridgeOidcConfig {
-  /** Issuer base URL, e.g. `https://sso.company.com/realms/staff`. */
+  /** Issuer base URL, e.g. `https://sso.example.com/realms/staff`. */
   issuerUrl: string
   /** Public client id registered with the identity provider. */
   clientId: string
@@ -124,7 +125,9 @@ export interface StarBridgeConfig {
  */
 export const Config: Schema<StarBridgeConfig> = Schema.object({
   gateway: Schema.object({
-    gatewayUrl: Schema.string().default('https://starbridge-gateway.company.com/v1'),
+    // Empty means "not configured yet", which is the state every fresh install
+    // starts in. See `validateConfig` for why that is not an error.
+    gatewayUrl: Schema.string().default(''),
     apiKey: Schema.string().default(''),
     timeoutMs: Schema.number().default(30_000),
     maxRetries: Schema.number().default(2),
@@ -193,38 +196,44 @@ export function envOr(name: string, fallback: string): string {
  * learns it while reading the startup log, not from a user reporting that chat
  * is broken.
  *
+ * An EMPTY address is deliberately not a failure. It is the state every fresh
+ * install is in, and the surface that configures it — the settings page, served
+ * by this same plugin — only exists if the plugin loads. Throwing here would
+ * therefore ship a one-click install that can never be repaired from inside
+ * DSH. An empty address is instead reported where it matters: the tools return
+ * `[GATEWAY_NOT_CONFIGURED]`, and the settings page shows the address step as
+ * unfinished.
+ *
  * @param config - the schema-validated configuration.
  * @returns the configuration with environment overrides applied.
- * @throws {Error} naming the offending field and the accepted form.
+ * @throws {Error} naming the offending field and the accepted form, for a
+ * present-but-unusable address or any other invalid leaf.
  */
 export function validateConfig(config: StarBridgeConfig): ResolvedConfig {
   const gatewayUrl = envOr('STARBRIDGE_GATEWAY_URL', config.gateway.gatewayUrl).trim()
   const apiKey = envOr('STARBRIDGE_GATEWAY_API_KEY', config.gateway.apiKey)
 
-  if (gatewayUrl.length === 0) {
-    throw new Error(
-      'starbridge: gateway.gatewayUrl is empty. Set it in the plugin config, or set '
-      + 'STARBRIDGE_GATEWAY_URL in the environment, e.g. "https://starbridge-gateway.company.com/v1".',
-    )
+  // Normalise so later URL joins never double the separator. Empty stays empty:
+  // "no address configured" is a supported state, not a malformed one.
+  let normalised = ''
+  if (gatewayUrl.length > 0) {
+    let parsed: URL
+    try {
+      parsed = new URL(gatewayUrl)
+    } catch {
+      throw new Error(
+        `starbridge: gateway.gatewayUrl is not an absolute URL (got "${gatewayUrl}"). `
+        + 'Use an absolute http(s) URL, e.g. "https://starbridge.example.com/starbridge".',
+      )
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      throw new Error(
+        `starbridge: gateway.gatewayUrl must use http or https (got "${parsed.protocol}"). `
+        + 'Production deployments should use https; plain http is accepted only for a local gateway.',
+      )
+    }
+    normalised = parsed.toString().replace(/\/+$/, '')
   }
-
-  let parsed: URL
-  try {
-    parsed = new URL(gatewayUrl)
-  } catch {
-    throw new Error(
-      `starbridge: gateway.gatewayUrl is not an absolute URL (got "${gatewayUrl}"). `
-      + 'Use an absolute http(s) URL, e.g. "https://starbridge-gateway.company.com/v1".',
-    )
-  }
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    throw new Error(
-      `starbridge: gateway.gatewayUrl must use http or https (got "${parsed.protocol}"). `
-      + 'Company deployments should use https; plain http is accepted only for a local gateway.',
-    )
-  }
-  // Normalise so later URL joins never double the separator.
-  const normalised = parsed.toString().replace(/\/+$/, '')
 
   if (!Number.isFinite(config.gateway.timeoutMs) || config.gateway.timeoutMs <= 0) {
     throw new Error(
@@ -259,7 +268,7 @@ export function validateConfig(config: StarBridgeConfig): ResolvedConfig {
     if (issuerUrl.length === 0) {
       throw new Error(
         'starbridge: oidc.clientId is set but oidc.issuerUrl is empty. Set the issuer base URL '
-        + '(e.g. "https://sso.company.com/realms/staff") or clear oidc.clientId to run without SSO.',
+        + '(e.g. "https://sso.example.com/realms/staff") or clear oidc.clientId to run without SSO.',
       )
     }
     if (clientId.length === 0) {

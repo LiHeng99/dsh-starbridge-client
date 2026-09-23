@@ -17,22 +17,30 @@
 #   every loader row for a package that declares `dsh.client`, so the Web profile
 #   picks up the client half from the same name with no second row.
 #
-# Values below are deployment defaults. Nothing secret belongs in this file:
-# inject credentials through the environment instead
+# Values below are the shipped DEFAULTS, and they are deliberately inert: no
+# gateway address, no credential, no default-model override. Everything an
+# individual decides belongs to the settings page; everything a DEPLOYMENT
+# decides belongs in the profile's own `cordis.patch.yml`, which is applied
+# after every bundle layer. Nothing secret belongs in this file at all — inject
+# credentials through the environment instead
 # (`STARBRIDGE_GATEWAY_API_KEY`, `STARBRIDGE_OIDC_CLIENT_ID`,
-# `STARBRIDGE_OIDC_CLIENT_SECRET`, `STARBRIDGE_GATEWAY_URL`), or override any row
-# field from the profile's own `cordis.patch.yml`, which is applied after every
-# bundle layer.
+# `STARBRIDGE_OIDC_CLIENT_SECRET`, `STARBRIDGE_GATEWAY_URL`).
 
 - insert:
     - id: starbridge
-      name: '@company/dsh-starbridge-client'
+      name: 'dsh-starbridge-client'
       config:
         gateway:
-          # Company AI gateway root, WITHOUT the machine-face path: this plugin
-          # derives <root>/gw (tools, feedback, KB) and <root>/gw/v1 (the model
-          # route) from it. A user overrides it from DSH Settings → 星桥 StarBridge.
-          gatewayUrl: https://starbridge-gateway.company.com/v1
+          # Empty on purpose: this plugin ships to whoever installs it from the
+          # plugin market, so it names NO organisation's host. The address is a
+          # per-deployment fact and belongs to the user, who fills it in from
+          # DSH Settings → 星桥 StarBridge — which is also why the plugin must
+          # load while this is still empty.
+          #
+          # A deployment that wants a fleet-wide default sets it here in its own
+          # profile `cordis.patch.yml` (applied after every bundle layer), or
+          # exports STARBRIDGE_GATEWAY_URL.
+          gatewayUrl: ''
           # Prefer STARBRIDGE_GATEWAY_API_KEY over writing a key here. This is
           # also the reference the model route resolves through `apiKeyEnv`
           # below: the settings page writes the user's access key or platform
@@ -79,16 +87,19 @@
 # ── 模型面（provider: starbridge）：让每一次模型调用都经过星桥中台 ──────────
 #
 # 上面那一行是「工具面」：只有模型主动调用 starbridge_* 工具时才经过中台。
-# 下面两行是「模型面」：把 DSH 的模型调用本身接到中台的 OpenAI 兼容面
-# （/starbridge/gw/v1/*）。于是对话、子代理、摘要、标题生成——每一次模型调用
-# 都必须先通过中台的认证、路由、配额与审计，不再存在绕过工具面的通道。
+# 下面这一行是「模型面」：把 DSH 的模型调用本身接到中台的 OpenAI 兼容面
+# （/starbridge/gw/v1/*）。用户在设置页打开「模型路由」之后，对话、子代理、
+# 摘要、标题生成——每一次模型调用都必须先通过中台的认证、路由、配额与审计，
+# 不再存在绕过工具面的通道。
 #
 # 谁在运行时接管它：星桥插件本身。用户在「设置 → 星桥 StarBridge」里填地址、
 # 填访问密钥或用平台账号登录之后，插件会
 #   1. 把本路由的 baseURL 写进 `llm-pi-ai` 设置分节（按请求生效，无需重启）；
 #   2. 把凭据写进下面 apiKeyEnv 指名的那个引用；
 #   3. 把新会话的默认模型切到 starbridge / general。
-# 因此下面这些值只是**出厂默认**：地址与凭据都可以在界面上改。
+# 因此下面这些值只是**路由的声明**：地址、凭据、默认模型都由界面写入。
+# 一条重要边界：模型路由**默认是关的**（见文件末尾的说明），装完插件不会立刻
+# 接管你的模型调用。
 #
 # 为什么用 llm-pi-ai 的「手工声明网关路由」而不是自写一个 provider 适配器：
 # 这是 DSH 官方支持的扩展点（providers 字典）。自写适配器要长期跟进流式协议、
@@ -111,7 +122,18 @@
       starbridge:
         displayName: 星桥中台
         api: openai-completions
-        baseURL: https://starbridge-gateway.company.com/starbridge/gw/v1
+        # 故意不写 baseURL：装了插件但还没接星桥的人，默认模型必须照旧走他自己
+        # 原来的提供方，而不是被一个死地址接管。地址由插件在用户点「连接」时
+        # 写入 `llm-pi-ai` 设置分节（按请求生效，无需重启）。
+        # 注意：这里不能写空字符串——llm-pi-ai 会以 "has an empty baseURL"
+        # 拒绝整个配置。省略该键才是「尚未指向任何地方」。
+        #
+        # 需要全公司开箱即走中台的部署，在自己的 profile cordis.patch.yml 里补：
+        #     - id: llm-pi-ai
+        #       config:
+        #         providers:
+        #           starbridge:
+        #             baseURL: https://starbridge.example.com/starbridge/gw/v1
         # 与 gateway.apiKey 同源：优先用环境变量，不要把密钥写进配置文件；
         # 用户在设置页填写的密钥或平台令牌也写在这个引用下。
         apiKeyEnv: STARBRIDGE_GATEWAY_API_KEY
@@ -134,9 +156,19 @@
           mode: normal
           maxRetries: 2
 
-# 出厂默认模型：只有在 settings.yaml 没有 agent-default-model 分节时才生效。
-# 用户不需要改这里——设置页的「模型路由」开关会在运行时改默认模型选择。
-- id: agent-default-model
-  config:
-    provider: starbridge
-    model: general
+# 出厂**不**接管默认模型。
+#
+# 早先这里有一行 `- id: agent-default-model` 把新 agent 的默认模型钉在
+# starbridge/general 上。对「全公司强制走中台」的部署那是对的，但对一个从插件
+# 市场一键装上的公共插件不合适：装上即把每个人的默认模型换成一个尚未配置的
+# 地址，等于让 harness 立刻不可用。所以公共包默认交给用户现有的提供方，
+# 由设置页的「模型路由」开关在运行时改默认模型选择（它写的是
+# `agent-default-model` 的设置分节，本来就是实时真源）。
+#
+# 公司自己的部署想恢复「装上即走中台」，在自己的 profile cordis.patch.yml
+#（bundle 层之后应用）里加回这三行即可：
+#
+#     - id: agent-default-model
+#       config:
+#         provider: starbridge
+#         model: general
