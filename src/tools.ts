@@ -11,7 +11,7 @@
  * 2. **`exec.signal` is always forwarded**, so cancelling a call stops the
  *    upstream HTTP request rather than leaving it to finish into a dead turn.
  *
- * @module @company/dsh-starbridge-client/tools
+ * @module dsh-starbridge-client/tools
  */
 
 import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
@@ -361,7 +361,7 @@ export function createStarBridgeTools(service: StarBridgeService): ToolDefinitio
       },
       base_url: {
         type: 'string',
-        description: 'StarBridge address, e.g. "https://starbridge.company.com/starbridge/gw". Used by "save", "use_access_key" and "login".',
+        description: 'StarBridge address, e.g. "https://starbridge.example.com/starbridge/gw". Used by "save", "use_access_key" and "login".',
       },
       user_id: {
         type: 'string',

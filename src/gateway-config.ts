@@ -18,7 +18,7 @@
  * What is left here is exactly the non-secret part, so the file can be read,
  * diffed, and backed up without leaking anything.
  *
- * @module @company/dsh-starbridge-client/gateway-config
+ * @module dsh-starbridge-client/gateway-config
  */
 
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
@@ -37,7 +37,7 @@ export type StarBridgeAuthMode =
 
 /** The non-secret half of the access configuration. */
 export interface StarBridgeGatewaySettings {
-  /** Gateway base URL (no trailing slash), e.g. `https://starbridge.company.com/v1`. */
+  /** Gateway base URL (no trailing slash), e.g. `https://starbridge.example.com/v1`. */
   baseUrl: string
   /** Employee identifier reported to the gateway. */
   userId: string

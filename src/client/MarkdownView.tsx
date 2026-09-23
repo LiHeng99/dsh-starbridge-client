@@ -5,7 +5,7 @@
  * elements. No HTML string is ever produced, so a reply — which is untrusted
  * company-gateway output — cannot inject markup into the harness UI.
  *
- * @module @company/dsh-starbridge-client/client/MarkdownView
+ * @module dsh-starbridge-client/client/MarkdownView
  */
 
 import type { CSSProperties, ReactElement, ReactNode } from 'react'

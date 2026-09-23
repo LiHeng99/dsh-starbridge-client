@@ -7,7 +7,7 @@
  * human-quotable on purpose: `sb-<epoch-ms>-<random>` sorts chronologically and
  * survives being pasted into a ticket.
  *
- * @module @company/dsh-starbridge-client/trace
+ * @module dsh-starbridge-client/trace
  */
 
 /** Lowercase hex alphabet for the random suffix. */

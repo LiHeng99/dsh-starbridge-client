@@ -11,7 +11,7 @@
  * private exchange on screen without it leaving the machine (only the turns they
  * send go to the gateway, as they must).
  *
- * @module @company/dsh-starbridge-client/client/ChatPanel
+ * @module dsh-starbridge-client/client/ChatPanel
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'

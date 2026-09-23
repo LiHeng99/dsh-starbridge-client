@@ -19,7 +19,7 @@
  * host routes (`/starbridge/api/*`), which is what keeps the access token out of
  * the browser entirely.
  *
- * @module @company/dsh-starbridge-client/client
+ * @module dsh-starbridge-client/client
  */
 
 import type { Context } from '@deepseek-ai/cordis'

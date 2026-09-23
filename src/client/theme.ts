@@ -7,7 +7,7 @@
  * theme the user selected without reading theme state, and without shipping a
  * stylesheet, which is one less lifecycle to manage on unload.
  *
- * @module @company/dsh-starbridge-client/client/theme
+ * @module dsh-starbridge-client/client/theme
  */
 
 import type { CSSProperties } from 'react'

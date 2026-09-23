@@ -12,7 +12,7 @@
  *    string, so a tool call without a session fails with a message a user can
  *    act on instead of an opaque 401 from the gateway.
  *
- * @module @company/dsh-starbridge-client/auth
+ * @module dsh-starbridge-client/auth
  */
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'

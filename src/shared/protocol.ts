@@ -7,7 +7,7 @@
  * the single authority for the request/response shapes crossing the
  * `/starbridge/api` boundary.
  *
- * @module @company/dsh-starbridge-client/protocol
+ * @module dsh-starbridge-client/protocol
  */
 
 /** Route prefix of every HTTP endpoint this plugin owns on the DSH web server. */

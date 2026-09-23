@@ -8,7 +8,7 @@
  * this sink, which scrubs credential-shaped text before it reaches whatever
  * exporter the harness has mounted.
  *
- * @module @company/dsh-starbridge-client/log
+ * @module dsh-starbridge-client/log
  */
 
 /** The variadic, printf-style logger method shape Cordis uses. */

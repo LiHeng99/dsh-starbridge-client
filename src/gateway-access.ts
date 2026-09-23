@@ -21,7 +21,7 @@
  * same vault and used to renew before expiry — with an explicit "forget" action
  * that deletes them, for anyone who would rather sign in each time.
  *
- * @module @company/dsh-starbridge-client/gateway-access
+ * @module dsh-starbridge-client/gateway-access
  */
 
 import { join } from 'node:path'
@@ -452,7 +452,7 @@ export async function probeGatewayFace(
       reachable: false,
       latencyMs: 0,
       error: `"${baseUrl}" is not an absolute http(s) URL.`,
-      hint: 'Use an address like "https://starbridge.company.com/starbridge/gw".',
+      hint: 'Use an address like "https://starbridge.example.com/starbridge/gw".',
     }
   }
 
@@ -525,7 +525,7 @@ export async function loginToPlatform(
   const urls = gatewayUrls(request.baseUrl)
   if (urls.faceUrl.length === 0) {
     throw new StarBridgeError('INVALID_ARGUMENT', `"${request.baseUrl}" is not a usable StarBridge address.`, {
-      hint: 'Use an address like "https://starbridge.company.com/starbridge/gw".',
+      hint: 'Use an address like "https://starbridge.example.com/starbridge/gw".',
     })
   }
 

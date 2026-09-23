@@ -27,7 +27,7 @@
 import { defineConfig } from 'tsdown'
 
 /** Bundle identity: must equal the npm package name so `<id>/client` resolves. */
-const PLUGIN_ID = '@company/dsh-starbridge-client'
+const PLUGIN_ID = 'dsh-starbridge-client'
 
 export default defineConfig({
   entry: { client: 'src/client/index.tsx' },

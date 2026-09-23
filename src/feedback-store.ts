@@ -11,7 +11,7 @@
  *   `forwarded: 'failed'` with the reason, never as a thrown error, because
  *   losing a user's correction is the outcome we refuse to have.
  *
- * @module @company/dsh-starbridge-client/feedback-store
+ * @module dsh-starbridge-client/feedback-store
  */
 
 import { StarBridgeError } from './errors.ts'

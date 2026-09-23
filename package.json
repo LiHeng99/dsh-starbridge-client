@@ -1,10 +1,17 @@
 {
-  "name": "@company/dsh-starbridge-client",
+  "name": "dsh-starbridge-client",
   "version": "0.1.0",
-  "description": "StarBridge (星桥): company AI platform client for DSH — unified cloud Agent gateway, OIDC sign-in, chat/feedback/knowledge-base tools, and Web UI panels.",
-  "license": "UNLICENSED",
-  "private": true,
+  "description": "StarBridge (星桥) gateway client for DSH — one plugin for gateway access, sign-in, chat / feedback / knowledge-base tools, and Web UI panels.",
+  "license": "MIT",
   "type": "module",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "starbridge",
+    "gateway",
+    "llm-gateway"
+  ],
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "exports": {

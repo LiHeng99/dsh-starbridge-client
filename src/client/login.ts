@@ -7,7 +7,7 @@
  * normal tab, which is why the callback page says "close this tab and return to
  * DSH".
  *
- * @module @company/dsh-starbridge-client/client/login
+ * @module dsh-starbridge-client/client/login
  */
 
 import { starBridgeApi, StarBridgeClientError } from './api.ts'

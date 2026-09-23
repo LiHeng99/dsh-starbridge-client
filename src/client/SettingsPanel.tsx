@@ -20,7 +20,7 @@
  *    model face that this client actually calls, so a mismatch is visible rather
  *    than mysterious.
  *
- * @module @company/dsh-starbridge-client/client/SettingsPanel
+ * @module dsh-starbridge-client/client/SettingsPanel
  */
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactElement } from 'react'
@@ -325,7 +325,7 @@ export function SettingsPanel({ close }: SettingsPanelProps): ReactElement {
           id="starbridge-base-url"
           label="服务地址"
           value={baseUrl}
-          placeholder="https://starbridge.company.com/starbridge/gw"
+          placeholder="https://starbridge.example.com/starbridge/gw"
           hint="服务根地址、/starbridge、/starbridge/gw、/starbridge/gw/v1 都能识别，会自动规范化。"
           onChange={setBaseUrl}
         />

@@ -7,7 +7,7 @@
  * build a request, read the NDJSON frame stream, and turn the server's typed
  * error envelope into an exception the UI can branch on.
  *
- * @module @company/dsh-starbridge-client/client/api
+ * @module dsh-starbridge-client/client/api
  */
 
 import { STARBRIDGE_ROUTE_PREFIX } from '../shared/protocol.ts'

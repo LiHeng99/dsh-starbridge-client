@@ -6,7 +6,7 @@
  * policy (where feedback is stored, whether it is forwarded) lives on the host,
  * and this component only collects a verdict and a correction.
  *
- * @module @company/dsh-starbridge-client/client/FeedbackBar
+ * @module dsh-starbridge-client/client/FeedbackBar
  */
 
 import { useCallback, useState, type ReactElement } from 'react'

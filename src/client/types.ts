@@ -8,7 +8,7 @@
  * dependency and independent of the shell's build, exactly as the host half does
  * for the web server.
  *
- * @module @company/dsh-starbridge-client/client/types
+ * @module dsh-starbridge-client/client/types
  */
 
 import type { Context } from '@deepseek-ai/cordis'

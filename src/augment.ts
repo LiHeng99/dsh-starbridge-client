@@ -14,7 +14,7 @@
  * augmentation resolves against the same module identity only when this file
  * names the package itself.
  *
- * @module @company/dsh-starbridge-client/augment
+ * @module dsh-starbridge-client/augment
  */
 
 import type { Context } from '@deepseek-ai/cordis'

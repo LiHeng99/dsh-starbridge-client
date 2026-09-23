@@ -15,7 +15,7 @@
  * renders as text, so a gateway reply can never inject markup into the harness
  * UI.
  *
- * @module @company/dsh-starbridge-client/markdown
+ * @module dsh-starbridge-client/markdown
  */
 
 /** Inline span kinds the panel knows how to render. */

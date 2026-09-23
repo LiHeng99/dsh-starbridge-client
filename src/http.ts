@@ -12,7 +12,7 @@
  * NDJSON survives proxies and needs no `EventSource` (which cannot POST), and
  * the plugin that owns the wire format is this one on both ends.
  *
- * @module @company/dsh-starbridge-client/http
+ * @module dsh-starbridge-client/http
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'

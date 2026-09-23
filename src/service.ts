@@ -16,7 +16,7 @@
  * - the **OIDC session** is the deployment's, unchanged, and still takes part in
  *   tool calls when a site runs single sign-on.
  *
- * @module @company/dsh-starbridge-client/service
+ * @module dsh-starbridge-client/service
  */
 
 import { AuthManager, EncryptedTokenPersistence, MemoryTokenPersistence, type TokenPersistence } from './auth.ts'
@@ -393,7 +393,7 @@ export class StarBridgeClient implements StarBridgeServiceContract {
         gatewayUrl: candidate,
         authenticated: false,
         error: `"${candidate}" is not an absolute URL.`,
-        hint: 'Use an address like "https://starbridge.company.com/starbridge/gw".',
+        hint: 'Use an address like "https://starbridge.example.com/starbridge/gw".',
       }
     }
 
@@ -424,7 +424,7 @@ export class StarBridgeClient implements StarBridgeServiceContract {
       const normalized = normalizeGatewayBaseUrl(patch.baseUrl)
       if (normalized.baseUrl.length === 0) {
         throw new StarBridgeError('INVALID_ARGUMENT', `"${patch.baseUrl}" is not a usable StarBridge address.`, {
-          hint: 'Enter an absolute http(s) address, e.g. "https://starbridge.company.com/starbridge/gw".',
+          hint: 'Enter an absolute http(s) address, e.g. "https://starbridge.example.com/starbridge/gw".',
         })
       }
       next.baseUrl = normalized.baseUrl
@@ -548,7 +548,7 @@ export class StarBridgeClient implements StarBridgeServiceContract {
     if (normalized.baseUrl.length === 0) {
       return {
         ok: false,
-        steps: [{ name: 'address', ok: false, detail: '请填写星桥地址', hint: '例如 https://starbridge.company.com/starbridge/gw' }],
+        steps: [{ name: 'address', ok: false, detail: '请填写星桥地址', hint: '例如 https://starbridge.example.com/starbridge/gw' }],
         status: this.status(),
       }
     }
@@ -839,7 +839,7 @@ export class StarBridgeClient implements StarBridgeServiceContract {
   private assertLive(): void {
     if (this.disposed) {
       throw new StarBridgeError('GATEWAY_UNREACHABLE', 'The StarBridge plugin was unloaded; its client is no longer usable.', {
-        hint: 'Re-enable the @company/dsh-starbridge-client plugin for this profile and retry.',
+        hint: 'Re-enable the dsh-starbridge-client plugin for this profile and retry.',
       })
     }
   }

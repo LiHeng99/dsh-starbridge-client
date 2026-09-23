@@ -13,7 +13,7 @@
  * returns token spans that React renders as elements — so no `innerHTML` and no
  * injection surface exists anywhere in the rendering path.
  *
- * @module @company/dsh-starbridge-client/client/highlight
+ * @module dsh-starbridge-client/client/highlight
  */
 
 /** Token categories the panel styles. */
