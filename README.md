@@ -1,8 +1,10 @@
-# @company/dsh-starbridge-client — 星桥 StarBridge
+# dsh-starbridge-client — 星桥 StarBridge
 
-公司 AI 平台（StarBridge / 星桥）的 DSH 客户端插件。员工在自己的 DSH profile 里安装这一个包，
-就得到统一网关接入、**填写地址或用平台账号登录**、以及对话 / 反馈 / 知识库三件套工具，
+星桥（StarBridge）AI 中台的 DSH 客户端插件。在自己的 DSH profile 里装这一个包，
+就得到统一网关接入、**填写地址或用平台账号登录**、以及对话 / 反馈 / 知识库工具，
 外加 Web UI 里的对话面板与设置页；再打开"模型路由"，DSH 的每一次 AI 调用都经星桥网关。
+
+插件对所有人发布，因此**不含任何一家的地址或凭据**：装上是空配置，填一次地址即可。
 
 它是一个**组合包（bundle）**，同时提供 host 面与 client 面：
 
@@ -71,11 +73,11 @@ client 的 `tsdown` 会产出被 shell 当 classic script 加载的 `lib/client.
 ## 安装
 
 ```bash
-# 从本地目录安装到 web profile（会在 profile 里建立 pnpm 链接）
-dsh plugin --profile web add ./dsh-starbridge-client
+# 从插件市场「设置 → 插件市场」一键安装，或直接：
+dsh plugin --profile web add dsh-starbridge-client
 
-# 发布到公司私服后
-dsh plugin --profile web add @company/dsh-starbridge-client
+# 本地开发时从目录装（会在 profile 里建立 pnpm 链接）
+dsh plugin --profile web add ./dsh-starbridge-client
 
 # 确认组合结果（无需启动即可看到插件行）
 dsh --profile web --dump-config | grep -A 20 starbridge
@@ -86,6 +88,10 @@ dsh web
 
 `dsh plugin add` 会把依赖装进 profile，并把声明了 `dsh.bundle` 的包追加进
 `dsh.profile.bundles`；该包的 `cordis.patch.yml` 因此成为组合层的一层。
+
+装完插件**还没有接上任何网关**——出厂配置里的地址是空的，这是刻意的（见「配置」一节）。
+打开 **设置 → 星桥 StarBridge** 填一次地址就通了；在那之前 `starbridge_*` 工具返回
+`[GATEWAY_NOT_CONFIGURED]` 并告诉你去哪里填，而不是让你去翻日志。
 
 ## 接入：填地址 + 填密钥或登录（设置页）
 
@@ -113,7 +119,7 @@ dsh web
 
 ```json
 {
-  "baseUrl": "https://starbridge.company.com/starbridge",
+  "baseUrl": "https://starbridge.example.com/starbridge",
   "userId": "liheng",
   "department": "engineering",
   "authMode": "account",
@@ -138,7 +144,7 @@ dsh web
 
 | 字段 | 默认值 | 说明 |
 |---|---|---|
-| `gateway.gatewayUrl` | `https://starbridge-gateway.company.com/v1` | 网关基址（含版本前缀）；**被设置页填写的地址覆盖** |
+| `gateway.gatewayUrl` | `''`（空） | 网关基址。**出厂为空是刻意的**：插件对所有人发布，不写死任何一家的地址；空地址不是加载错误，只是还没配置，工具会回 `[GATEWAY_NOT_CONFIGURED]`。被设置页填写的地址覆盖，也可用 `STARBRIDGE_GATEWAY_URL` 注入 |
 | `gateway.apiKey` | `''` | 机器凭据；优先用环境变量，也会被设置页填写的密钥覆盖 |
 | `gateway.timeoutMs` | `30000` | 单次请求超时 |
 | `gateway.maxRetries` | `2` | 仅对传输错误与 5xx 重试 |
@@ -174,17 +180,33 @@ host 重启后仍是登录态。
 本组合包同时接入**模型面**——把 DSH 的模型调用本身接到中台的 OpenAI 兼容面，
 于是对话、子代理、摘要、标题生成**每一次模型调用**都先过中台。
 
-组合层（`cordis.patch.yml`）声明三件事：
+组合层（`cordis.patch.yml`）声明两件事：
 
 1. 给 `@deepseek-ai/dsh-llm-pi-ai` 声明一条手工网关路由 `starbridge`
-   （`api: openai-completions`，`baseURL: <中台>/starbridge/gw/v1`）；
-2. 该路由的 `apiKeyEnv: STARBRIDGE_GATEWAY_API_KEY`——设置页把密钥或平台令牌写在**同一个引用**下；
-3. 把新 agent 的默认模型切到 `starbridge` / `general`（**出厂默认**）。
+   （`api: openai-completions`）——注意**不写 `baseURL`**：地址是每个部署自己的事实；
+2. 该路由的 `apiKeyEnv: STARBRIDGE_GATEWAY_API_KEY`——设置页把密钥或平台令牌写在**同一个引用**下。
 
 运行时接管由插件完成（用户点开关即可）：把路由 `baseURL` 写进 `llm-pi-ai` 设置分节
 （该分节按请求读取，因此**无需重启**）、把凭据写进凭据引用、把默认模型切到目标路由。
 `model` 字段承载的是**场景**（general / code_review / doc_qa / summarize），不是具体上游模型：
 上游由中台按「场景 + 部门」的路由规则决定，调用方无权指定——否则就能绕过路由与配额。
+
+**模型路由默认是关的。** 装完插件、不点开关，你的默认模型仍然是你原来的提供方——
+一个公开发布的插件不该在装上的一瞬间接管所有人的模型调用。点开开关（或走完设置页的
+「连接」）之后才会切到 `starbridge / general`。
+
+要求「装上即走中台」的部署，在自己的 profile `cordis.patch.yml`
+（bundle 层之后应用）里补回这两段即可恢复出厂接管：
+
+```yaml
+- id: llm-pi-ai
+  config:
+    providers:
+      starbridge:
+        baseURL: https://starbridge.example.com/starbridge/gw/v1
+- id: agent-default-model
+  config: { provider: starbridge, model: general }
+```
 
 ### 身份：逐人归因
 
@@ -206,11 +228,12 @@ host 重启后仍是登录态。
 ### ⚠️ 默认模型的优先级
 
 `agent-default-model` 的**设置分节**是实时真源。桌面版首次运行会往 `settings.yaml`
-写入 `agent-default-model`，它会**覆盖**组合层里的默认值——这正是设置页的
+写入 `agent-default-model`，它会**覆盖**组合层里的值——这正是设置页的
 「模型路由」开关能生效的原因：它直接改这个设置分节，而不是要求用户手改文件。
+本插件出厂不写这个分节（见上），所以装完不会改变你当前的默认模型。
 
 路由一旦生效，中台不可达就等于没有模型可用——这是「所有对话经中台」的必然代价，
-也是公司部署想要的效果。设置页关掉开关即可退回 DSH 当前默认提供方。
+也是强制走中台的部署想要的效果。设置页关掉开关即可退回 DSH 当前默认提供方。
 
 ### 后端需要什么
 
@@ -244,8 +267,9 @@ host 重启后仍是登录态。
 npm run verify
 ```
 
-离线（无网络、无凭据、无 DSH 进程）跑 195 项检查，覆盖：组合包结构与 patch 组合（用 DSH 真实的
-`applyEntryPatches` 算法）、Config 默认值与非法配置的响亮拒绝、三条冒烟用例、网关协议细节
+离线（无网络、无凭据、无 DSH 进程）跑 201 项检查，覆盖：组合包结构与 patch 组合（用 DSH 真实的
+`applyEntryPatches` 算法）、Config 默认值、**未配置安装也能加载**（空地址不是加载错误）与非法配置的响亮拒绝、
+三条冒烟用例、网关协议细节
 （身份头 / trace / SSE 多种帧形 / 5xx 重试与 401 不重试）、全部 HTTP 路由
 （含接入配置、两种登录方式、模型路由开关、**重启后凭据回读**）、client bundle 的自注册外壳
 与 require 面、Markdown 解析与代码高亮。
