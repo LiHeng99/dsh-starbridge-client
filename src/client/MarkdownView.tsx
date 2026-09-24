@@ -12,7 +12,7 @@ import type { CSSProperties, ReactElement, ReactNode } from 'react'
 
 import { parseMarkdown, type BlockNode, type InlineNode } from '../shared/markdown.ts'
 import { tokenize } from './highlight.ts'
-import { styles, tokenColors, tokens } from './theme.ts'
+import { styles, tagStyle, text, tokenColors, tokens } from './theme.ts'
 
 /** Props of {@link MarkdownView}. */
 export interface MarkdownViewProps {
@@ -46,7 +46,7 @@ function renderInline(nodes: readonly InlineNode[], keyPrefix: string): ReactNod
             href={node.href}
             target="_blank"
             rel="noreferrer noopener"
-            style={{ color: tokens.accent, textDecoration: 'underline' }}
+            style={{ color: tokens.link, textDecoration: 'underline' }}
           >
             {renderInline(node.children, key)}
           </a>
@@ -70,7 +70,7 @@ function renderCodeBlock(language: string, value: string, key: string): ReactEle
   return (
     <div key={key} style={{ margin: '8px 0' }}>
       {language.length > 0 && (
-        <div style={{ ...styles.badge, display: 'inline-block', marginBottom: '4px' }}>{language}</div>
+        <div style={{ ...tagStyle('outline'), display: 'inline-block', marginBottom: '4px' }}>{language}</div>
       )}
       <pre style={styles.codeBlock}>
         <code>
@@ -152,7 +152,7 @@ function renderBlock(block: BlockNode, index: number): ReactElement | null {
           style={{
             margin: '8px 0',
             paddingLeft: '10px',
-            borderLeft: `3px solid ${tokens.border}`,
+            borderLeft: `2px solid ${tokens.borderL2}`,
             color: tokens.textMuted,
           }}
         >
@@ -166,17 +166,18 @@ function renderBlock(block: BlockNode, index: number): ReactElement | null {
     case 'table':
       return (
         <div key={key} style={{ overflowX: 'auto', margin: '8px 0' }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: '12.5px' }}>
+          <table style={{ borderCollapse: 'collapse', ...text.caption }}>
             <thead>
               <tr>
                 {block.header.map((cell, cellIndex) => (
                   <th
                     key={`${key}-h${cellIndex}`}
                     style={{
-                      border: `1px solid ${tokens.border}`,
+                      border: `0.5px solid ${tokens.borderL2}`,
                       padding: '5px 9px',
                       textAlign: 'left',
-                      background: tokens.bgSubtle,
+                      fontWeight: 600,
+                      background: tokens.bgModulePlatform,
                     }}
                   >
                     {renderInline(cell, `${key}-h${cellIndex}`)}
@@ -190,7 +191,7 @@ function renderBlock(block: BlockNode, index: number): ReactElement | null {
                   {row.map((cell, cellIndex) => (
                     <td
                       key={`${key}-r${rowIndex}c${cellIndex}`}
-                      style={{ border: `1px solid ${tokens.border}`, padding: '5px 9px' }}
+                      style={{ border: `0.5px solid ${tokens.borderL2}`, padding: '5px 9px' }}
                     >
                       {renderInline(cell, `${key}-r${rowIndex}c${cellIndex}`)}
                     </td>
@@ -205,7 +206,7 @@ function renderBlock(block: BlockNode, index: number): ReactElement | null {
       return (
         <hr
           key={key}
-          style={{ border: 'none', borderTop: `1px solid ${tokens.border}`, margin: '10px 0' } satisfies CSSProperties}
+          style={{ border: 'none', borderTop: `0.5px solid ${tokens.borderL2}`, margin: '10px 0' } satisfies CSSProperties}
         />
       )
     default:

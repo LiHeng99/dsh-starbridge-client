@@ -20,7 +20,7 @@ import { starBridgeApi, StarBridgeClientError } from './api.ts'
 import { FeedbackBar } from './FeedbackBar.tsx'
 import { MarkdownView } from './MarkdownView.tsx'
 import { startLogin } from './login.ts'
-import { styles, tokens } from './theme.ts'
+import { classes, noticeStyle, styles, tagStyle, text, tokens } from './theme.ts'
 import type { StarBridgeChatMessage, StarBridgeStatusReport } from '../shared/protocol.ts'
 
 /** One row of the panel transcript. */
@@ -198,23 +198,17 @@ export function ChatPanel({ sessionId }: ChatPanelProps): ReactElement {
           </p>
         </div>
         <div style={styles.row}>
-          <span
-            style={{
-              ...styles.badge,
-              color: status?.auth.state === 'authenticated' ? tokens.success : tokens.textMuted,
-              borderColor: status?.auth.state === 'authenticated' ? tokens.success : tokens.border,
-            }}
-          >
+          <span style={tagStyle(status?.auth.state === 'authenticated' ? 'success' : 'neutral')}>
             {authBadge}
           </span>
         </div>
       </div>
 
       {needsAttention && (
-        <div style={{ ...styles.notice, borderColor: tokens.warning }}>
+        <div style={noticeStyle('warning')}>
           <span>尚未登录星桥平台，无法发起对话。</span>
           <div style={styles.row}>
-            <button type="button" style={styles.primaryButton} onClick={() => void signIn()}>
+            <button type="button" className={classes.primaryButton} onClick={() => void signIn()}>
               使用公司账号登录
             </button>
           </div>
@@ -222,12 +216,12 @@ export function ChatPanel({ sessionId }: ChatPanelProps): ReactElement {
       )}
 
       {error !== null && (
-        <div style={{ ...styles.notice, borderColor: tokens.danger }}>
+        <div style={noticeStyle('danger')}>
           <span>{error.message}</span>
-          {error.hint !== undefined && <span style={{ fontSize: '12px', color: tokens.textMuted }}>{error.hint}</span>}
+          {error.hint !== undefined && <span style={styles.fieldHint}>{error.hint}</span>}
           {error.needsLogin === true && (
             <div style={styles.row}>
-              <button type="button" style={styles.primaryButton} onClick={() => void signIn()}>
+              <button type="button" className={classes.primaryButton} onClick={() => void signIn()}>
                 重新登录
               </button>
             </div>
@@ -262,7 +256,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps): ReactElement {
                 ? <span style={{ color: tokens.textMuted }}>星桥正在思考…</span>
                 : <MarkdownView source={entry.text} />}
               {entry.streaming === true && entry.text.length > 0 && (
-                <span style={{ color: tokens.accent }}>▍</span>
+                <span style={{ color: tokens.text }}>▍</span>
               )}
               {entry.streaming !== true && entry.text.length > 0 && (
                 <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -272,7 +266,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps): ReactElement {
                     {...(sessionId === undefined ? {} : { sessionId })}
                   />
                   {entry.traceId !== undefined && (
-                    <span style={{ fontSize: '11px', color: tokens.textMuted }}>trace {entry.traceId}</span>
+                    <span style={{ ...text.micro, color: tokens.textMuted }}>trace {entry.traceId}</span>
                   )}
                 </div>
               )}
@@ -284,7 +278,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps): ReactElement {
       <div style={styles.composer}>
         <textarea
           value={draft}
-          style={styles.textarea}
+          className={classes.textarea}
           placeholder="输入问题，Ctrl/⌘ + Enter 发送"
           disabled={busy}
           onChange={(event) => setDraft(event.target.value)}
@@ -297,14 +291,14 @@ export function ChatPanel({ sessionId }: ChatPanelProps): ReactElement {
         />
         {busy
           ? (
-              <button type="button" style={styles.button} onClick={stop}>
+              <button type="button" className={classes.button} onClick={stop}>
                 停止
               </button>
             )
           : (
               <button
                 type="button"
-                style={{ ...styles.primaryButton, opacity: draft.trim().length === 0 ? 0.5 : 1 }}
+                className={classes.primaryButton}
                 disabled={draft.trim().length === 0}
                 onClick={() => void send()}
               >

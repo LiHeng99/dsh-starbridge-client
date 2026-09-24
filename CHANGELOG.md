@@ -48,6 +48,26 @@
 
 - 对话面板（流式 + Markdown + 零依赖代码高亮 + 主题变量）、设置页（接入配置 / 登录 / 模型路由）、
   反馈条（点赞 / 点踩 / 修正回答）。
+- 三个界面统一改用 **DSH 自己的设计令牌**，跟随明暗主题，不再自带配色：
+  - 修正了一批**并不存在**的变量名（`--dsw-alias-text-base`、`--dsw-alias-bg-elevated`、
+    `--dsw-alias-bg-subtle`、`--dsw-alias-border-base`、`--dsw-alias-brand-primary-contrast`、
+    `--dsw-alias-danger-base`、`--dsw-alias-success-base`、`--dsw-alias-warning-base`、
+    `--dsw-alias-radius-md`、`--dsw-alias-radius-sm`、`--dsw-font-mono`）。它们此前静默退到硬编码的
+    深色兜底值，导致插件在 DSH 的浅色设置面板里显示为一块深色卡片。现在读的是
+    `label-primary` / `label-tertiary` / `bg-layer-1..3` / `border-l1..4` /
+    `state-error-primary` / `button-primary-fill` / `--dsw-specific-bubble` 与
+    `--dsw-font-*` 长写属性，兜底值改为浅色字面值。
+  - 增补了内联样式做不到的状态：按钮 `hover` / `active` / `disabled` / `focus-visible`、
+    输入框聚焦描边与 `::placeholder`、复选框中止色、字段之间的发丝线。按 `data-plugin-css`
+    幂等注入一张小样式表（与 DSH 自己的 client 包同一做法），无独立 `.css` 文件。
+  - 几何对齐 DSH：字段与按钮 8px 圆角、卡片 16px、用户气泡 22px（并改用
+    `--dsw-specific-bubble` 与 DSH 会话气泡一致的 10px/16px 内边距）、字段高 34px、
+    标签为 999px 胶囊、主按钮填充 `button-primary-fill`。
+  - **设置页重排为 DSH 插件设置页的形状**：760px 单列、18px 标题、每件事一张 0.5px 描边卡片、
+    卡内字段发丝线分隔；移除了插件自己画的页面标题与"关闭设置"按钮（DSH 设置面板已提供标题与
+    关闭按钮，重复画一套正是"不像 DSH"的来源之一）。
+  - 语法高亮配色改为按 `body[data-ds-dark-theme]` 切换的两套值：此前的 Material 系配色是按深色
+    底色挑的，在浅色代码块上对比度不足。
 
 ### 安全
 
@@ -58,8 +78,9 @@
 
 ### 验证
 
-- `npm run verify` 离线跑 **201 项检查**（无网络、无凭据、无 DSH 进程），
+- `npm run verify` 离线跑 **228 项检查**（无网络、无凭据、无 DSH 进程），
   覆盖组合包结构、patch 组合（用 DSH 真实的 `applyEntryPatches`）、配置 schema 与
   "未配置也能加载"、三条冒烟用例、网关协议细节、全部 HTTP 路由、client bundle 的自注册外壳、
-  Markdown 解析与代码高亮。
+  **设计令牌词汇表与状态样式表**（样式表里的插值必须已求值、hover / focus-visible / 发丝线状态
+  必须在场、自造变量名不许回归）、Markdown 解析与代码高亮。
 - GitHub Actions 在每次 push 与 PR 上跑 `build` + `typecheck` + `verify`。

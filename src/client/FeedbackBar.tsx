@@ -13,7 +13,7 @@ import { useCallback, useState, type ReactElement } from 'react'
 
 import { starBridgeApi, StarBridgeClientError } from './api.ts'
 import { openLoginWindow } from './login.ts'
-import { styles, tokens } from './theme.ts'
+import { classes, noticeStyle, styles, text, tokens } from './theme.ts'
 import type { StarBridgeFeedbackVerdict } from '../shared/protocol.ts'
 
 /** Props injected by the `conversation.chat.assistant-actions` slot. */
@@ -90,11 +90,6 @@ export function FeedbackBar({ messageId, sessionId, conversationId }: FeedbackBa
     [conversationId, messageId, sessionId],
   )
 
-  const buttonStyle = (active: boolean) => ({
-    ...styles.feedbackButton,
-    ...(active ? { color: tokens.accent, borderColor: tokens.accent } : {}),
-  })
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <div style={styles.feedbackBar}>
@@ -102,8 +97,9 @@ export function FeedbackBar({ messageId, sessionId, conversationId }: FeedbackBa
           type="button"
           title="这条回答有帮助"
           aria-label="Like this answer"
+          className={classes.subtleButton}
+          data-active={verdict === 'up'}
           disabled={status.kind === 'saving'}
-          style={buttonStyle(verdict === 'up')}
           onClick={() => void submit('up')}
         >
           👍 有帮助
@@ -112,8 +108,9 @@ export function FeedbackBar({ messageId, sessionId, conversationId }: FeedbackBa
           type="button"
           title="这条回答不正确或没用"
           aria-label="Dislike this answer"
+          className={classes.subtleButton}
+          data-active={verdict === 'down'}
           disabled={status.kind === 'saving'}
-          style={buttonStyle(verdict === 'down')}
           onClick={() => void submit('down')}
         >
           👎 有问题
@@ -122,48 +119,51 @@ export function FeedbackBar({ messageId, sessionId, conversationId }: FeedbackBa
           type="button"
           title="写下正确答案，反馈给星桥质量队列"
           aria-label="Correct this answer"
+          className={classes.subtleButton}
+          data-active={correcting}
           disabled={status.kind === 'saving'}
-          style={buttonStyle(correcting)}
           onClick={() => setCorrecting((open) => !open)}
         >
           ✏️ 修正回答
         </button>
-        {status.kind === 'saving' && <span style={{ fontSize: '11px', color: tokens.textMuted }}>提交中…</span>}
-        {status.kind === 'saved' && <span style={{ fontSize: '11px', color: tokens.success }}>{status.detail}</span>}
+        {status.kind === 'saving' && <span style={{ ...text.micro, color: tokens.textMuted }}>提交中…</span>}
+        {status.kind === 'saved' && <span style={{ ...text.micro, color: tokens.success }}>{status.detail}</span>}
       </div>
 
       {correcting && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '520px' }}>
-          <label style={{ fontSize: '11px', color: tokens.textMuted }}>
+          <label style={styles.fieldHint}>
             问题所在（必填）：哪里不对、缺了什么
           </label>
           <textarea
             value={correction}
+            className={classes.textarea}
             onChange={(event) => setCorrection(event.target.value)}
             placeholder="例如：没有给出退款入口，只说了「请联系客服」。"
             rows={2}
-            style={{ ...styles.textarea, minHeight: '52px', fontSize: '12.5px' }}
+            style={{ minHeight: '52px' }}
           />
-          <label style={{ fontSize: '11px', color: tokens.textMuted }}>
+          <label style={styles.fieldHint}>
             期望答案（建议填写）：这条应该怎么答。星桥用它来判断回答对错、并生成改进建议。
           </label>
           <textarea
             value={expectation}
+            className={classes.textarea}
             onChange={(event) => setExpectation(event.target.value)}
             placeholder="例如：应引导用户到「我的订单 → 申请退款」提交申请，并说明 1-3 个工作日到账。"
             rows={3}
-            style={{ ...styles.textarea, minHeight: '64px', fontSize: '12.5px' }}
+            style={{ minHeight: '64px' }}
           />
           <div style={styles.row}>
             <button
               type="button"
+              className={classes.primaryButton}
               disabled={status.kind === 'saving' || correction.trim().length === 0}
-              style={styles.primaryButton}
               onClick={() => void submit('down', correction.trim(), expectation.trim())}
             >
               提交修正
             </button>
-            <button type="button" style={styles.button} onClick={() => setCorrecting(false)}>
+            <button type="button" className={classes.button} onClick={() => setCorrecting(false)}>
               取消
             </button>
           </div>
@@ -171,9 +171,9 @@ export function FeedbackBar({ messageId, sessionId, conversationId }: FeedbackBa
       )}
 
       {status.kind === 'error' && (
-        <div style={{ ...styles.notice, borderColor: tokens.danger }}>
-          <span style={{ fontSize: '12px' }}>{status.message}</span>
-          {status.hint !== undefined && <span style={{ fontSize: '11px', color: tokens.textMuted }}>{status.hint}</span>}
+        <div style={noticeStyle('danger')}>
+          <span>{status.message}</span>
+          {status.hint !== undefined && <span style={{ color: tokens.textMuted }}>{status.hint}</span>}
         </div>
       )}
     </div>

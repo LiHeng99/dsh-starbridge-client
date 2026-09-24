@@ -50,7 +50,7 @@ dsh-starbridge-client/
         ├── FeedbackBar.tsx # 点赞 / 点踩 / 修正回答（问题所在 + 期望答案）
         ├── MarkdownView.tsx
         ├── highlight.ts    # 零依赖代码高亮
-        ├── theme.ts        # 使用 --dsw-* 主题变量
+        ├── theme.ts        # DSH 设计令牌 + 状态样式表
         ├── login.ts        # 登录入口
         └── types.ts        # slots 服务的最小声明
 ```
@@ -64,7 +64,7 @@ npm run build          # = build:host + build:client
 npm run build:host     # tsc -p tsconfig.json      → lib/*.js + lib/*.d.ts
 npm run build:client   # tsdown                     → lib/client.js
 npm run typecheck      # 双端类型检查
-npm run verify         # 离线冒烟验证（195 项检查）
+npm run verify         # 离线冒烟验证（228 项检查）
 ```
 
 两个构建都必须先通过再安装：host 的 `tsc` 会真正产出 `lib/index.js`，
@@ -114,6 +114,25 @@ dsh web
 
 连接过程返回**逐步清单**（地址 → 可达 → 凭据 → 模型路由），每一步独立报告成败与修法，
 而不是笼统的"失败"。
+
+### 界面与主题：与 DSH 同一套令牌
+
+三个 slot 的样式全部读 DSH 自己的设计令牌，所以**跟随用户选择的明暗主题，不自己配色**：
+
+- 颜色走 `--dsw-alias-*`（`label-primary` / `label-tertiary` / `bg-layer-1..3` /
+  `border-l1..4` / `state-error-primary` / `button-primary-fill` …），用户气泡用
+  `--dsw-specific-bubble`（即 DSH 会话里用户消息的底色），字体走 `--dsw-font-*` 的长写属性。
+- 几何取 DSH 自己的字面值：输入框与按钮 8px 圆角、卡片 16px、气泡 22px、字段高 34px；
+  主按钮填充 `--dsw-alias-button-primary-fill`（明色下是墨色、暗色下是白色，不是蓝色）。
+- 设置页按 DSH 的插件设置页排版：760px 单列、18px 标题、每件事一张 0.5px 描边卡片、
+  字段之间用发丝线分隔。**面板标题与关闭按钮由 DSH 设置面板自己提供**，插件不再重复画一套。
+- `hover` / `focus-visible` / `::placeholder` / `:disabled` / 字段间发丝线这些内联样式写不出来的
+  状态，收在 `theme.ts` 里一张按 `data-plugin-css` 幂等注入的小样式表里（DSH 自己的 client 包
+  用的就是这个做法）；没有独立的 `.css` 文件，也没有额外的构建步骤。
+
+> 早期版本这里写的是 `--dsw-alias-text-base`、`--dsw-alias-bg-elevated` 这类**并不存在**的变量名，
+> 于是每个都静默退到硬编码的深色兜底值——插件会在 DSH 的浅色设置面板里画出一块深色卡片。
+> `npm run verify` 现在有一组 "no invented token" 检查盯着这件事。
 
 非机密配置存放在 `$DSH_HOME/starbridge-gateway.json`：
 
@@ -267,12 +286,13 @@ host 重启后仍是登录态。
 npm run verify
 ```
 
-离线（无网络、无凭据、无 DSH 进程）跑 201 项检查，覆盖：组合包结构与 patch 组合（用 DSH 真实的
+离线（无网络、无凭据、无 DSH 进程）跑 228 项检查，覆盖：组合包结构与 patch 组合（用 DSH 真实的
 `applyEntryPatches` 算法）、Config 默认值、**未配置安装也能加载**（空地址不是加载错误）与非法配置的响亮拒绝、
 三条冒烟用例、网关协议细节
 （身份头 / trace / SSE 多种帧形 / 5xx 重试与 401 不重试）、全部 HTTP 路由
 （含接入配置、两种登录方式、模型路由开关、**重启后凭据回读**）、client bundle 的自注册外壳
-与 require 面、Markdown 解析与代码高亮。
+与 require 面、**设计令牌词汇表与状态样式表**（注入的样式表里插值必须已求值、不许再出现自造的
+`--dsw-*` 名字、hover / focus-visible / 发丝线状态必须在场）、Markdown 解析与代码高亮。
 
 验证会把 `DSH_HOME` 指向一个临时目录，因此**不会**读写你真实的 profile。
 

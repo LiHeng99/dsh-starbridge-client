@@ -1075,8 +1075,33 @@ try {
 // ---------------------------------------------------------------------------
 
 const registrations = []
+
+/**
+ * Style tags the client bundle appended, in order.
+ *
+ * The bundle injects its state stylesheet at module scope (see
+ * `src/client/theme.ts`), so the DOM has to exist for that path to run at all.
+ * This double is the smallest thing that makes it observable: `querySelector`
+ * answers only for an id already appended, which is exactly the idempotence
+ * contract the guard relies on.
+ */
+const injectedStyles = []
+const documentDouble = {
+  querySelector: (selector) => injectedStyles.find(
+    (tag) => selector === `style[data-plugin-css="${tag.dataset.pluginCss}"]`,
+  ) ?? null,
+  createElement: () => ({ dataset: {}, textContent: '' }),
+  head: {
+    appendChild: (tag) => {
+      injectedStyles.push(tag)
+      return tag
+    },
+  },
+}
+
 const sandbox = {
   window: { __ModuleLoader__: { load: (registration) => registrations.push(registration) } },
+  document: documentDouble,
   console,
   Symbol,
   Object,
@@ -1122,6 +1147,91 @@ for (const slot of ['"main"', '"settings.section"', '"conversation.chat.assistan
   check(`client bundle claims the ${slot} slot`, clientSource.includes(slot))
 }
 check('client bundle targets the plugin route prefix', clientSource.includes('/starbridge/api'))
+
+// ---------------------------------------------------------------------------
+// 8b. The design-token vocabulary and the state stylesheet
+//
+// The plugin's first styling pass named harness variables that do not exist, so
+// every one of them resolved to a hard-coded dark fallback and the settings page
+// rendered dark inside a light harness. Two things are asserted here: that the
+// stylesheet's own interpolations resolved to real values (a template literal
+// that shipped un-evaluated would leave `${...}` in the CSS and break every
+// declaration around it), and that none of the invented names is back.
+// ---------------------------------------------------------------------------
+
+checkEqual('the client bundle injects exactly one stylesheet', injectedStyles.length, 1)
+
+const injectedCss = injectedStyles[0].textContent
+checkEqual(
+  'the stylesheet is keyed for idempotent injection',
+  injectedStyles[0].dataset.pluginCss,
+  `${pkg.name}/client/styles.css`,
+)
+checkEqual('the stylesheet declares the plugin that owns it', injectedStyles[0].dataset.plugin, pkg.name)
+check(
+  'every interpolation in the stylesheet resolved to a value',
+  !injectedCss.includes('${'),
+  injectedCss.slice(0, 240),
+)
+check(
+  'the stylesheet resolves its tokens to harness variables with a fallback',
+  /var\(--dsw-alias-border-l2,\s*#0000001a\)/.test(injectedCss)
+    && /var\(--dsw-alias-button-primary-fill,\s*#0f1115\)/.test(injectedCss),
+  injectedCss.slice(0, 240),
+)
+// The three things a CSSProperties object has no syntax for, which is the whole
+// reason this stylesheet exists.
+check('the stylesheet carries hover states', injectedCss.includes(':hover'))
+check('the stylesheet carries focus-visible states', injectedCss.includes(':focus-visible'))
+check('the stylesheet carries placeholder states', injectedCss.includes('::placeholder'))
+check('the stylesheet draws the field separator with a sibling combinator', injectedCss.includes('.sb-field + .sb-field'))
+check(
+  'the stylesheet keys the syntax palette off the harness dark-theme attribute',
+  injectedCss.includes('body[data-ds-dark-theme]'),
+)
+
+// The invented names, verbatim as the first cut wrote them. Naming any of these
+// again is the bug this section exists to prevent.
+const inventedTokens = [
+  '--dsw-alias-text-base',
+  '--dsw-alias-text-secondary',
+  '--dsw-alias-bg-elevated',
+  '--dsw-alias-bg-subtle',
+  '--dsw-alias-border-base',
+  '--dsw-alias-brand-primary-contrast',
+  '--dsw-alias-danger-base',
+  '--dsw-alias-success-base',
+  '--dsw-alias-warning-base',
+  '--dsw-alias-radius-md',
+  '--dsw-alias-radius-sm',
+  '--dsw-font-mono',
+]
+for (const name of inventedTokens) {
+  check(`the theme no longer names the invented token ${name}`, !clientSource.includes(name))
+}
+
+check(
+  'the theme reads the harness text ramp',
+  clientSource.includes('--dsw-alias-label-primary') && clientSource.includes('--dsw-alias-label-tertiary'),
+)
+check(
+  'the theme reads the harness surface ramp',
+  clientSource.includes('--dsw-alias-bg-base')
+    && clientSource.includes('--dsw-alias-bg-layer-3')
+    && clientSource.includes('--dsw-alias-bg-module-platform'),
+)
+check(
+  'the theme reads the harness state ramp',
+  clientSource.includes('--dsw-alias-state-error-primary') && clientSource.includes('--dsw-alias-state-success-primary'),
+)
+check(
+  'the theme reads the harness font ramps as longhands',
+  clientSource.includes('-font-family') && clientSource.includes('-line-height'),
+)
+check(
+  'the user bubble borrows the harness chat bubble surface',
+  clientSource.includes('--dsw-specific-bubble'),
+)
 
 // ---------------------------------------------------------------------------
 // 9. Markdown parser and code tokenizer
